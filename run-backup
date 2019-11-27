@@ -1,0 +1,27 @@
+#!/bin/sh
+set -e -u -o pipefail
+
+# Base name for backups.
+basename="postgres-dumpall"
+suffix="sql.bz2"
+extra_backups=5
+
+# Move to backup directory.
+cd /var/lib/postgresql/backup
+
+# Dump the database.
+pg_dumpall -U postgres | bzip2 -9 -c > "$basename.new.$suffix"
+
+# Rotate backups.
+for i in $(seq $extra_backups); do
+	source_number="$((extra_backups-i+0))"
+	target_number="$((extra_backups-i+1))"
+	source="$basename.$source_number.$suffix"
+	target="$basename.$target_number.$suffix"
+	if [ -f "$source" ]; then
+		mv "$source" "$target"
+	fi;
+done
+
+# Make new dump the most recent version.
+mv "$basename.new.$suffix" "$basename.0.$suffix"
